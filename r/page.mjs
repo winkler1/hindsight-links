@@ -28,8 +28,18 @@ async function render() {
   if (current !== generation) return;
 
   const title = element('h1', recording.title || 'Hindsight');
-  const time = element('p', 'Time: ' + recording.t + ' s');
-  time.className = 'time';
+  if (recording.t > 0) {
+    const seconds = Math.floor(recording.t);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor(seconds / 60) % 60;
+    const position = (hours ? hours + ':' + String(minutes).padStart(2, '0') : String(minutes))
+      + ':' + String(seconds % 60).padStart(2, '0');
+    const time = element('p', 'Playback at ' + position);
+    time.className = 'time';
+    content.append(title, time);
+  } else {
+    content.append(title);
+  }
 
   const app = element('a', 'Open in Hindsight');
   app.href = 'hindsight://open#' + payload;
@@ -50,7 +60,7 @@ async function render() {
     try { localStorage.setItem(preference, String(checkbox.checked)); } catch {}
   });
   label.append(checkbox, document.createTextNode('Always open in Hindsight on this computer'));
-  content.append(title, time, actions, label);
+  content.append(actions, label);
   if (checkbox.checked) app.click();
 }
 

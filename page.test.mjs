@@ -122,7 +122,7 @@ test('link page workflows in a headless browser', { timeout: 30000 }, async () =
     await navigate('/r/#' + maximum.payload);
     await wait('document.querySelectorAll("a").length === 2');
     assert.deepEqual(await evaluate('[document.querySelector("h1").textContent, document.querySelector(".time").textContent, ...Array.from(document.querySelectorAll("a"), a => a.href), window.__launches.length]'),
-      ['A sample', 'Time: 86400 s', 'hindsight://open#' + maximum.payload,
+      ['A sample', 'Playback at 24:00:00', 'hindsight://open#' + maximum.payload,
         'https://drive.google.com/file/d/0123456789abcdefghij/view', 0]);
     assert.equal(await evaluate('document.querySelector("meta[name=referrer]").content'), 'no-referrer');
     assert.equal(await evaluate('document.querySelector("meta[http-equiv]").content'),
@@ -132,6 +132,16 @@ test('link page workflows in a headless browser', { timeout: 30000 }, async () =
       const screenshot = await command('Page.captureScreenshot', { format: 'png' });
       await writeFile(globalThis.process.env.PAGE_SCREENSHOT, Buffer.from(screenshot.data, 'base64'));
     }
+    for (const [seconds, expected] of [[0, null], [0.5, 'Playback at 0:00'], [33, 'Playback at 0:33'],
+      [33.9, 'Playback at 0:33'], [3599.9, 'Playback at 59:59'], [3600, 'Playback at 1:00:00'],
+      [3663, 'Playback at 1:01:03']]) {
+      const payload = await encode({ id: minimum.input.id, t: seconds });
+      await navigate('/r/#' + payload);
+      await wait('document.querySelectorAll("a").length === 2');
+      assert.equal(await evaluate('document.querySelector(".time")?.textContent ?? null'), expected, 'playback time ' + seconds);
+    }
+    await navigate('/r/#' + maximum.payload);
+    await wait('document.querySelectorAll("a").length === 2');
     await evaluate('document.querySelectorAll("a").forEach(a => a.click())');
     assert.deepEqual(await evaluate('window.__launches'), [
       'hindsight://open#' + maximum.payload, 'https://drive.google.com/file/d/0123456789abcdefghij/view']);
@@ -153,7 +163,7 @@ test('link page workflows in a headless browser', { timeout: 30000 }, async () =
     await navigate('/r/#' + malicious);
     await wait('document.querySelector("h1") !== null');
     assert.deepEqual(await evaluate('[document.querySelector("h1").textContent, document.querySelectorAll("h1 script").length, !!window.pwned, document.querySelector(".time").textContent]'),
-      ['<script>window.pwned=1</script>visible', 0, false, 'Time: 1.25 s']);
+      ['<script>window.pwned=1</script>visible', 0, false, 'Playback at 0:01']);
     const unsafe = vectors.invalid.find(vector => /bidi/i.test(vector.name));
     assert.ok(unsafe, 'expected a raw bidi title vector');
     await navigate('/r/#' + unsafe.payload);
@@ -172,7 +182,7 @@ test('link page workflows in a headless browser', { timeout: 30000 }, async () =
     await forwarded;
     assert.equal(await evaluate('location.href'), origin + '/new/#' + maximum.payload);
     assert.deepEqual(blocked, []);
-    console.log('Verified: valid links, full-ID Drive search, direct Drive links, opt-in and opt-out, tampering, inert titles, bidi rejection, framing, and fragment forwarding.');
+    console.log('Verified: playback times, valid links, full-ID Drive search, direct Drive links, opt-in and opt-out, tampering, inert titles, bidi rejection, framing, and fragment forwarding.');
   } finally {
     process.kill();
     await once(process, 'exit').catch(() => {});

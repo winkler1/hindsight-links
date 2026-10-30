@@ -37,7 +37,7 @@ async function render() {
   const drive = element('a', 'Open in Google Drive');
   drive.href = recording.d
     ? 'https://drive.google.com/file/d/' + recording.d + '/view'
-    : 'https://drive.google.com/drive/u/0/search?q=' + recording.id.slice(0, 8);
+    : 'https://drive.google.com/drive/u/0/search?q=' + recording.id;
   const actions = document.createElement('div');
   actions.className = 'actions';
   actions.append(app, drive);

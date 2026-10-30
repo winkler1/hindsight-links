@@ -43,7 +43,7 @@ test('link page workflows in a headless browser', { timeout: 30000 }, async () =
       response.end(await readFile(new URL(path, import.meta.url)));
     } else { response.writeHead(404).end(); }
   });
-  server.listen(0, '127.0.0.1');
+  server.listen({ port: 0, host: '127.0.0.1', exclusive: true });
   await once(server, 'listening');
   const origin = 'http://127.0.0.1:' + server.address().port;
   const process = spawn(browser, ['--headless=new', '--no-sandbox', '--disable-gpu',
@@ -140,7 +140,12 @@ test('link page workflows in a headless browser', { timeout: 30000 }, async () =
     await navigate('/r/#' + minimum.payload);
     await wait('window.__launches.length === 1');
     assert.deepEqual(await evaluate('[document.querySelectorAll("a")[1].href, window.__launches[0], document.querySelector("input").checked]'),
-      ['https://drive.google.com/drive/u/0/search?q=01234567', 'hindsight://open#' + minimum.payload, true]);
+      ['https://drive.google.com/drive/u/0/search?q=01234567-89ab-4cde-8fab-0123456789ab', 'hindsight://open#' + minimum.payload, true]);
+    const samePrefix = await encode({ id: '01234567-1111-4222-8333-444444444444', t: 0 });
+    await navigate('/r/#' + samePrefix);
+    await wait('window.__launches.length === 1');
+    assert.equal(await evaluate('document.querySelectorAll("a")[1].href'),
+      'https://drive.google.com/drive/u/0/search?q=01234567-1111-4222-8333-444444444444');
     await navigate('/r/#' + tampered.payload);
     await wait('document.body.textContent.includes("This link is not valid")');
     assert.deepEqual(await evaluate('[document.body.textContent.trim(), document.querySelectorAll("a,button,input").length, window.__launches.length]'), ['This link is not valid', 0, 0]);
@@ -167,7 +172,7 @@ test('link page workflows in a headless browser', { timeout: 30000 }, async () =
     await forwarded;
     assert.equal(await evaluate('location.href'), origin + '/new/#' + maximum.payload);
     assert.deepEqual(blocked, []);
-    console.log('Verified: valid links, both destinations, opt-in and opt-out, tampering, inert titles, bidi rejection, framing, and fragment forwarding.');
+    console.log('Verified: valid links, full-ID Drive search, direct Drive links, opt-in and opt-out, tampering, inert titles, bidi rejection, framing, and fragment forwarding.');
   } finally {
     process.kill();
     await once(process, 'exit').catch(() => {});
